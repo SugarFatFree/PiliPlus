@@ -2580,6 +2580,10 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     final key = event.logicalKey;
     final isSelect = key == LogicalKeyboardKey.select ||
         key == LogicalKeyboardKey.enter;
+    final isUpDown = key == LogicalKeyboardKey.arrowUp ||
+        key == LogicalKeyboardKey.arrowDown ||
+        key == LogicalKeyboardKey.audioVolumeUp ||
+        key == LogicalKeyboardKey.audioVolumeDown;
     final controlsVisible = ctr.showControls.value;
 
     // OK 键释放
@@ -2590,7 +2594,8 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
         _showSpeedIndicator.value = null;
         return true;
       }
-      // 短按切换播放/暂停
+      // 控制栏显示时放行给焦点系统
+      if (controlsVisible) return false;
       if (ctr.playerStatus.isPlaying) {
         ctr.pause();
       } else {
@@ -2611,19 +2616,26 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
         ctr.setPlaybackSpeed(boostedSpeed);
         _showSpeedIndicator.value = boostedSpeed;
       }
+      // 控制栏显示时放行 KeyDown 给焦点系统（按钮点击）
+      if (controlsVisible && event is! KeyRepeatEvent) return false;
       return true;
-    } else if (key == LogicalKeyboardKey.arrowLeft) {
-      ctr.seekTo(ctr.position - const Duration(seconds: 10));
+    } else if (key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowRight) {
+      if (controlsVisible) return false;
+      if (!ctr.isLive) {
+        final offset = key == LogicalKeyboardKey.arrowLeft
+            ? const Duration(seconds: -10)
+            : const Duration(seconds: 10);
+        ctr.seekTo(ctr.position + offset);
+      }
       ctr.controls = true;
       return true;
-    } else if (key == LogicalKeyboardKey.arrowRight) {
-      ctr.seekTo(ctr.position + const Duration(seconds: 10));
-      ctr.controls = true;
-      return true;
-    } else if (key == LogicalKeyboardKey.arrowUp ||
-        key == LogicalKeyboardKey.arrowDown) {
-      ctr.controls = !ctr.showControls.value;
-      return true;
+    } else if (isUpDown) {
+      if (!controlsVisible) {
+        ctr.controls = true;
+        return true;
+      }
+      return false;
     }
     return false;
   }

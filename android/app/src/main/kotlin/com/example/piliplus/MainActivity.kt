@@ -31,29 +31,19 @@ class MainActivity : AudioServiceActivity() {
     private var isFoldable = false
     private val isTV = BuildConfig.IS_TV
 
-    private fun isTVDpadUpDown(keyCode: Int): Boolean {
-        return isTV && (keyCode == KeyEvent.KEYCODE_DPAD_UP ||
-                keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
-                keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
-                keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)
-    }
-
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (isTVDpadUpDown(event.keyCode)) {
-            super.dispatchKeyEvent(event)
-            return true
-        }
-        return super.dispatchKeyEvent(event)
-    }
-
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (isTVDpadUpDown(keyCode)) return true
+        if (isTV && isVolumeDpad(keyCode)) return true
         return super.onKeyDown(keyCode, event)
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
-        if (isTVDpadUpDown(keyCode)) return true
+        if (isTV && isVolumeDpad(keyCode)) return true
         return super.onKeyUp(keyCode, event)
+    }
+
+    private fun isVolumeDpad(keyCode: Int): Boolean {
+        return keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
+                keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
