@@ -2727,23 +2727,36 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     }
 
     // === 面板显示时 ===
+    final row = _panelRow.value;
     if (isBack) {
-      _panelRow.value = -1; // 关闭面板，不退出播放页
+      _panelRow.value = -1;
       return true;
     } else if (isSelect) {
       _onKey('ok');
       return true;
-    } else if (key == LogicalKeyboardKey.arrowLeft) {
-      _onKey('left');
-      return true;
-    } else if (key == LogicalKeyboardKey.arrowRight) {
-      _onKey('right');
+    } else if (key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowRight) {
+      if (row == 0 && !ctr.isLive) {
+        // 进度条行：快进快退
+        final s = key == LogicalKeyboardKey.arrowLeft ? -10 : 10;
+        ctr.seekTo(ctr.position + Duration(seconds: s));
+        _resetHideTimer();
+      } else if (row == 1) {
+        // 按钮行：切换按钮（不 seek）
+        final max = _buttons.length - 1;
+        if (key == LogicalKeyboardKey.arrowLeft) {
+          _btnIndex.value = (_btnIndex.value - 1).clamp(0, max);
+        } else {
+          _btnIndex.value = (_btnIndex.value + 1).clamp(0, max);
+        }
+        _resetHideTimer();
+      }
       return true;
     } else if (key == LogicalKeyboardKey.contextMenu) {
       _panelRow.value = -1;
       return true;
     }
-    return true; // 面板显示时消费所有未处理的键
+    return true;
   }
 
   void _handleNativeKey(String key, String action, bool isRepeat) {
@@ -2793,12 +2806,13 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   @override
   void dispose() {
     _hideTimer?.cancel();
-    _channel.invokeMethod('setPlayerActive', {'active': false});
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     // 只清理自己注册的回调，不影响新实例
     if (TVKeyHandler.instance?._callback == _handleNativeKey) {
       TVKeyHandler.instance?._callback = null;
       TVKeyHandler.instance = null;
+      // 只在没有新实例时才关闭 playerActive
+      _channel.invokeMethod('setPlayerActive', {'active': false});
     }
     _showSpeedIndicator.dispose();
     _panelRow.dispose();
@@ -2828,6 +2842,12 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
         setSheetState(() {
           selectedIndex = (selectedIndex + 1).clamp(0, options.length - 1);
         });
+      } else if (key == 'back') {
+        if (!handled) {
+          handled = true;
+          Navigator.of(context).pop();
+          completer.complete(null);
+        }
       }
     };
 
@@ -2979,13 +2999,18 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   void _showQualityPicker() async {
     final vdc = widget.videoDetailController;
     if (vdc == null) return;
-    final aq = vdc.data.acceptQuality;
-    final ad = vdc.data.acceptDesc;
-    if (aq == null || ad == null) return;
+    var aq = vdc.data.acceptQuality;
+    var ad = vdc.data.acceptDesc;
+    // fnval=1 时 acceptQuality 可能为空，用固定列表
+    if (aq == null || aq.isEmpty) {
+      aq = [80, 64, 32, 16];
+      ad = ['1080P 高清', '720P 高清', '480P 清晰', '360P 流畅'];
+    }
+    ad ??= [];
     final result = await _showSidePanel<int>(
       title: '画质',
       options: List.generate(aq.length, (i) => _TVDialogOption(
-        label: i < ad.length ? '${ad[i]}' : '未知',
+        label: i < ad!.length ? '${ad[i]}' : '未知',
         value: aq[i],
         isSelected: vdc.currentVideoQa.value?.code == aq[i],
       )),
