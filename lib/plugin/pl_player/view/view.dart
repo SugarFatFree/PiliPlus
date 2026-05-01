@@ -2583,6 +2583,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     final key = event.logicalKey;
     final isSelect = key == LogicalKeyboardKey.select ||
         key == LogicalKeyboardKey.enter;
+    final controlsVisible = ctr.showControls.value;
 
     // OK 键释放
     if (event is KeyUpEvent && isSelect) {
@@ -2590,13 +2591,15 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
         ctr.setPlaybackSpeed(_originalSpeed);
         _isLongPressing = false;
         _showSpeedIndicator.value = null;
+        return true;
+      }
+      // 控制栏可见时，让 Flutter 处理按钮点击
+      if (controlsVisible) return false;
+      // 控制栏隐藏时，短按切换播放/暂停
+      if (ctr.playerStatus.isPlaying) {
+        ctr.pause();
       } else {
-        // 短按，切换播放/暂停
-        if (ctr.playerStatus.isPlaying) {
-          ctr.pause();
-        } else {
-          ctr.play();
-        }
+        ctr.play();
       }
       return true;
     }
@@ -2607,7 +2610,6 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
 
     if (isSelect) {
       if (event is KeyRepeatEvent) {
-        // 长按中，加速
         if (!_isLongPressing) {
           _isLongPressing = true;
           _originalSpeed = ctr.playbackSpeed;
@@ -2615,21 +2617,30 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
           ctr.setPlaybackSpeed(boostedSpeed);
           _showSpeedIndicator.value = boostedSpeed;
         }
+        return true;
       }
-      // KeyDownEvent 不做任何操作，等 KeyUp 或 KeyRepeat
+      // 控制栏可见时，让 Flutter 处理（按钮聚焦点击）
+      if (controlsVisible) return false;
+      // 控制栏隐藏时，拦截 KeyDown 等 KeyUp
       return true;
     } else if (key == LogicalKeyboardKey.arrowLeft) {
+      if (controlsVisible) return false;
       ctr.seekTo(ctr.position - const Duration(seconds: 10));
       ctr.controls = true;
       return true;
     } else if (key == LogicalKeyboardKey.arrowRight) {
+      if (controlsVisible) return false;
       ctr.seekTo(ctr.position + const Duration(seconds: 10));
       ctr.controls = true;
       return true;
     } else if (key == LogicalKeyboardKey.arrowUp ||
         key == LogicalKeyboardKey.arrowDown) {
-      ctr.controls = !ctr.showControls.value;
-      return true;
+      if (!controlsVisible) {
+        ctr.controls = true;
+        return true;
+      }
+      // 控制栏可见时，放行方向键让焦点系统导航
+      return false;
     } else if (key == LogicalKeyboardKey.contextMenu) {
       widget.onMenu();
       return true;

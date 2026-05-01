@@ -34,12 +34,18 @@ android {
 
     flavorDimensions += "device"
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     productFlavors {
         create("mobile") {
             dimension = "device"
+            buildConfigField("boolean", "IS_TV", "false")
         }
         create("tv") {
             dimension = "device"
+            buildConfigField("boolean", "IS_TV", "true")
         }
     }
 
