@@ -60,9 +60,9 @@ void main() async {
     exit(0);
   }
 
-  // TV 默认画质 720P，默认关闭硬件解码（如果用户没有手动设置过）
+  // TV 默认画质 1080P，默认关闭硬件解码（如果用户没有手动设置过）
   if (!GStorage.setting.containsKey(SettingBoxKey.defaultVideoQa)) {
-    GStorage.setting.put(SettingBoxKey.defaultVideoQa, 64); // 720P
+    GStorage.setting.put(SettingBoxKey.defaultVideoQa, 80); // 1080P
   }
   if (!GStorage.setting.containsKey(SettingBoxKey.enableHA)) {
     GStorage.setting.put(SettingBoxKey.enableHA, false);

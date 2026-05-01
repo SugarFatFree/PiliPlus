@@ -39,7 +39,8 @@ class MainActivity : AudioServiceActivity() {
                 KeyEvent.KEYCODE_DPAD_UP,
                 KeyEvent.KEYCODE_DPAD_DOWN,
                 KeyEvent.KEYCODE_VOLUME_UP,
-                KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                KeyEvent.KEYCODE_VOLUME_DOWN,
+                KeyEvent.KEYCODE_BACK -> {
                     val action = when (event.action) {
                         KeyEvent.ACTION_DOWN -> "down"
                         KeyEvent.ACTION_UP -> "up"
@@ -47,6 +48,7 @@ class MainActivity : AudioServiceActivity() {
                     }
                     val key = when (event.keyCode) {
                         KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_VOLUME_UP -> "arrowUp"
+                        KeyEvent.KEYCODE_BACK -> "back"
                         else -> "arrowDown"
                     }
                     val isRepeat = event.repeatCount > 0

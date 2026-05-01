@@ -2748,7 +2748,6 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
 
   void _handleNativeKey(String key, String action, bool isRepeat) {
     if (_isSubMenuOpen) {
-      // 子菜单打开时，将上下键转发给子菜单的回调
       if (action == 'down') _subMenuKeyCallback?.call(key);
       return;
     }
@@ -2757,6 +2756,13 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
       _onKey('up');
     } else if (key == 'arrowDown') {
       _onKey('down');
+    } else if (key == 'back') {
+      if (_panelRow.value != -1) {
+        _panelRow.value = -1;
+      } else {
+        // 面板隐藏时，手动触发返回
+        ctr.onPopInvokedWithResult(false, null);
+      }
     }
   }
 
@@ -2789,8 +2795,11 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     _hideTimer?.cancel();
     _channel.invokeMethod('setPlayerActive', {'active': false});
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
-    TVKeyHandler.instance?._callback = null;
-    TVKeyHandler.instance = null;
+    // 只清理自己注册的回调，不影响新实例
+    if (TVKeyHandler.instance?._callback == _handleNativeKey) {
+      TVKeyHandler.instance?._callback = null;
+      TVKeyHandler.instance = null;
+    }
     _showSpeedIndicator.dispose();
     _panelRow.dispose();
     _btnIndex.dispose();
@@ -3055,13 +3064,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
         listenable: Listenable.merge([_panelRow, _btnIndex]),
         builder: (context, _) {
           if (_panelRow.value == -1) return const SizedBox.shrink();
-          return PopScope(
-            canPop: false,
-            onPopInvokedWithResult: (didPop, _) {
-              if (!didPop) _panelRow.value = -1;
-            },
-            child: Obx(() => _buildPanel()),
-          );
+          return Obx(() => _buildPanel());
         },
       ),
     ],
