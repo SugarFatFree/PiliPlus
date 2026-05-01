@@ -218,34 +218,54 @@ class _TVSettingPageState extends State<TVSettingPage> {
   }
 
   Future<void> _showKeyLog(BuildContext context) async {
-    const channel = MethodChannel('PiliPlus');
-    final log = await channel.invokeMethod<String>('getKeyLog') ?? '无按键记录';
-    if (!context.mounted) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('按键日志'),
-        content: SizedBox(
-          width: 500,
-          height: 400,
-          child: SingleChildScrollView(
-            child: SelectableText(
-              '先按几次遥控器方向键上下，再进来查看\n'
-              'DPAD_UP=19 DPAD_DOWN=20\n'
-              'VOLUME_UP=24 VOLUME_DOWN=25\n\n$log',
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+    try {
+      final appDir = await getApplicationSupportDirectory();
+      // Android filesDir 对应 getApplicationSupportDirectory 的父级
+      final keyLogFile = File('${appDir.parent.path}/key_log.txt');
+      String log;
+      if (keyLogFile.existsSync()) {
+        log = keyLogFile.readAsStringSync();
+        // 导出到外部存储
+        final extDir = (await getExternalStorageDirectory())!;
+        final logsDir = Directory('${extDir.path}/logs');
+        if (!logsDir.existsSync()) await logsDir.create(recursive: true);
+        final exportPath = '${logsDir.path}/key_log.txt';
+        await keyLogFile.copy(exportPath);
+        await keyLogFile.delete();
+        SmartDialog.showToast('按键日志已导出到: $exportPath',
+            displayTime: const Duration(seconds: 5));
+      } else {
+        log = '无按键记录，先按几次遥控器方向键再来查看';
+      }
+      if (!context.mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('按键日志'),
+          content: SizedBox(
+            width: 500,
+            height: 400,
+            child: SingleChildScrollView(
+              child: SelectableText(
+                'DPAD_UP=19 DPAD_DOWN=20\n'
+                'VOLUME_UP=24 VOLUME_DOWN=25\n'
+                'OK/SELECT=23 ENTER=66\n\n$log',
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+              ),
             ),
           ),
+          actions: [
+            TextButton(
+              autofocus: true,
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('关闭'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            autofocus: true,
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('关闭'),
-          ),
-        ],
-      ),
-    );
+      );
+    } catch (e) {
+      SmartDialog.showToast('读取按键日志失败: $e');
+    }
   }
 
   Future<void> _exportLogs(BuildContext context) async {

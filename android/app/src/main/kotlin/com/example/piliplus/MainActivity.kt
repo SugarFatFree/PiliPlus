@@ -31,11 +31,12 @@ class MainActivity : AudioServiceActivity() {
     private var isFoldable = false
     private val isTV = BuildConfig.IS_TV
 
-    private val keyLog = StringBuilder()
-
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (isTV && event.action == KeyEvent.ACTION_DOWN) {
-            keyLog.append("key=${event.keyCode} isTV=$isTV\n")
+            try {
+                val logFile = File(filesDir, "key_log.txt")
+                logFile.appendText("key=${event.keyCode} isTV=$isTV action=DOWN\n")
+            } catch (_: Exception) {}
         }
         if (isTV) {
             when (event.keyCode) {
@@ -57,11 +58,6 @@ class MainActivity : AudioServiceActivity() {
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "PiliPlus")
         methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
-                "getKeyLog" -> {
-                    result.success(keyLog.toString())
-                    keyLog.clear()
-                    return@setMethodCallHandler
-                }
                 "back" -> back();
 
                 "biliSendCommAntifraud" -> {
