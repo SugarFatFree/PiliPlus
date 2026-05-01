@@ -2648,9 +2648,15 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   }
 
   void _handleNativeKey(String key, String action, bool isRepeat) {
+    if (action != 'down') return;
     if (key == 'arrowUp' || key == 'arrowDown') {
-      if (action == 'down') {
-        ctr.controls = !ctr.showControls.value;
+      if (!ctr.showControls.value) {
+        ctr.controls = true;
+      } else {
+        final direction = key == 'arrowUp'
+            ? TraversalDirection.up
+            : TraversalDirection.down;
+        FocusManager.instance.primaryFocus?.focusInDirection(direction);
       }
     }
   }
