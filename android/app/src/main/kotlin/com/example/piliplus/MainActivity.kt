@@ -32,12 +32,6 @@ class MainActivity : AudioServiceActivity() {
     private val isTV = BuildConfig.IS_TV
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (isTV && event.action == KeyEvent.ACTION_DOWN) {
-            try {
-                val logFile = File(filesDir, "key_log.txt")
-                logFile.appendText("key=${event.keyCode} isTV=$isTV action=DOWN\n")
-            } catch (_: Exception) {}
-        }
         if (isTV) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP,

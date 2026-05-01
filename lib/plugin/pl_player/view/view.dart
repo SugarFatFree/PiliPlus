@@ -2586,6 +2586,10 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
         key == LogicalKeyboardKey.audioVolumeDown;
     final controlsVisible = ctr.showControls.value;
 
+    if (event is KeyDownEvent) {
+      Utils.reportError('TV_KEY: ${key.keyLabel} (${key.keyId}) ${event.runtimeType}');
+    }
+
     // OK 键释放
     if (event is KeyUpEvent && isSelect) {
       if (_isLongPressing) {
