@@ -10,6 +10,7 @@ import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
@@ -136,6 +137,18 @@ class _TVSettingPageState extends State<TVSettingPage> {
               ),
             ),
 
+            TVFocusWrapper(
+              scaleFactor: 1.02,
+              borderRadius: 12,
+              onSelect: () => _showKeyLog(context),
+              child: ListTile(
+                leading:
+                    Icon(Icons.keyboard, color: theme.colorScheme.primary),
+                title: const Text('查看按键日志'),
+                subtitle: const Text('诊断遥控器按键码'),
+              ),
+            ),
+
             const SizedBox(height: 16),
             _SectionTitle('关于', theme),
             TVFocusWrapper(
@@ -198,6 +211,37 @@ class _TVSettingPageState extends State<TVSettingPage> {
               SmartDialog.showToast('已退出登录');
             },
             child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showKeyLog(BuildContext context) async {
+    const channel = MethodChannel('PiliPlus');
+    final log = await channel.invokeMethod<String>('getKeyLog') ?? '无按键记录';
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('按键日志'),
+        content: SizedBox(
+          width: 500,
+          height: 400,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              '先按几次遥控器方向键上下，再进来查看\n'
+              'DPAD_UP=19 DPAD_DOWN=20\n'
+              'VOLUME_UP=24 VOLUME_DOWN=25\n\n$log',
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            autofocus: true,
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('关闭'),
           ),
         ],
       ),

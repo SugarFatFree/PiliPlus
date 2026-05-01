@@ -31,15 +31,18 @@ class MainActivity : AudioServiceActivity() {
     private var isFoldable = false
     private val isTV = BuildConfig.IS_TV
 
+    private val keyLog = StringBuilder()
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        android.util.Log.d("PiliTV", "dispatchKeyEvent: isTV=$isTV keyCode=${event.keyCode} action=${event.action} DPAD_UP=${KeyEvent.KEYCODE_DPAD_UP} DPAD_DOWN=${KeyEvent.KEYCODE_DPAD_DOWN} VOL_UP=${KeyEvent.KEYCODE_VOLUME_UP} VOL_DOWN=${KeyEvent.KEYCODE_VOLUME_DOWN}")
+        if (isTV && event.action == KeyEvent.ACTION_DOWN) {
+            keyLog.append("key=${event.keyCode} isTV=$isTV\n")
+        }
         if (isTV) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP,
                 KeyEvent.KEYCODE_DPAD_DOWN,
                 KeyEvent.KEYCODE_VOLUME_UP,
                 KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                    android.util.Log.d("PiliTV", "INTERCEPTED keyCode=${event.keyCode}")
                     window.superDispatchKeyEvent(event)
                     return true
                 }
@@ -54,6 +57,11 @@ class MainActivity : AudioServiceActivity() {
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "PiliPlus")
         methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "getKeyLog" -> {
+                    result.success(keyLog.toString())
+                    keyLog.clear()
+                    return@setMethodCallHandler
+                }
                 "back" -> back();
 
                 "biliSendCommAntifraud" -> {
