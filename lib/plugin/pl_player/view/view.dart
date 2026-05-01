@@ -2596,7 +2596,6 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
         key == LogicalKeyboardKey.audioVolumeDown;
     final controlsVisible = ctr.showControls.value;
 
-    // 上下键已通过 Android MethodChannel 处理，这里只处理其他键
 
     // OK 键释放
     if (event is KeyUpEvent && isSelect) {
