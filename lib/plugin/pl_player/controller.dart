@@ -765,18 +765,22 @@ class PlPlayerController with BlockConfigMixin {
 
   Future<Player> _initPlayer() async {
     assert(_videoPlayerController == null);
-    final opt = {
-      'video-sync': Pref.videoSync,
-    };
-    if (Platform.isAndroid) {
+    final Map<String, String> opt = {};
+    if (PlatformUtils.isTV) {
+      // TV: use safe defaults only
       opt['volume-max'] = '100';
-      opt['ao'] = Pref.audioOutput;
-    } else if (PlatformUtils.isDesktop) {
-      opt['volume'] = (volume.value * 100).toString();
-    }
-    final autosync = Pref.autosync;
-    if (autosync != '0') {
-      opt['autosync'] = autosync;
+    } else {
+      opt['video-sync'] = Pref.videoSync;
+      if (Platform.isAndroid) {
+        opt['volume-max'] = '100';
+        opt['ao'] = Pref.audioOutput;
+      } else if (PlatformUtils.isDesktop) {
+        opt['volume'] = (volume.value * 100).toString();
+      }
+      final autosync = Pref.autosync;
+      if (autosync != '0') {
+        opt['autosync'] = autosync;
+      }
     }
 
     final player = await Player.create(

@@ -9,7 +9,9 @@ import 'package:PiliPlus/utils/cache_manager.dart';
 import 'package:PiliPlus/utils/date_utils.dart';
 import 'package:PiliPlus/utils/json_file_handler.dart';
 import 'package:PiliPlus/utils/path_utils.dart';
+import 'package:PiliPlus/utils/device_utils.dart';
 import 'package:PiliPlus/utils/platform_utils.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
@@ -65,7 +67,13 @@ void main() async {
     GStorage.setting.put(SettingBoxKey.enableHA, false);
   }
 
-  await Future.wait([_initDownPath(), _initTmpPath()]);
+  await Future.wait([
+    _initDownPath(),
+    _initTmpPath(),
+    DeviceInfoPlugin().androidInfo.then((info) {
+      DeviceUtils.sdkInt = info.version.sdkInt;
+    }),
+  ]);
 
   Get.lazyPut(AccountService.new);
 
