@@ -895,6 +895,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     List<BottomControlType> userSpecifyItemRight = PlatformUtils.isTV
         ? [
             if (isNotFileSource && anySeason) BottomControlType.episode,
+            BottomControlType.fit,
             BottomControlType.subtitle,
             BottomControlType.speed,
             if (isNotFileSource) BottomControlType.qa,

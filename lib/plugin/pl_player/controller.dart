@@ -1210,6 +1210,11 @@ class PlPlayerController with BlockConfigMixin {
   Future<void> pause({bool notify = true, bool isInterrupt = false}) async {
     await _videoPlayerController?.pause();
     playerStatus.value = PlayerStatus.paused;
+    // TV 暂停时显示控制条并保持
+    if (PlatformUtils.isTV) {
+      showControls.value = true;
+      _timer?.cancel();
+    }
 
     // 主动暂停时让出音频焦点
     if (!isInterrupt) {
@@ -1222,6 +1227,8 @@ class PlPlayerController with BlockConfigMixin {
   /// 隐藏控制条
   void hideTaskControls() {
     _timer?.cancel();
+    // TV 暂停时控制条常驻
+    if (PlatformUtils.isTV && !playerStatus.isPlaying) return;
     _timer = Timer(showControlDuration, () {
       if (!isSliderMoving.value && !tripling) {
         controls = false;

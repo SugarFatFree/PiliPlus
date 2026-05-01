@@ -2066,7 +2066,7 @@ class HeaderControlState extends State<HeaderControl>
                 ),
             ],
           ),
-          if (showFSActionItem && !PlatformUtils.isTV)
+          if (showFSActionItem)
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2100,7 +2100,8 @@ class HeaderControlState extends State<HeaderControl>
                     ),
                   ),
                 ),
-                if (introController case final UgcIntroController ugc)
+                if (!PlatformUtils.isTV &&
+                    introController case final UgcIntroController ugc)
                   SizedBox(
                     width: btnWidth,
                     height: btnHeight,
@@ -2160,19 +2161,20 @@ class HeaderControlState extends State<HeaderControl>
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: btnWidth,
-                  height: btnHeight,
-                  child: ActionItem(
-                    expand: false,
-                    icon: const Icon(
-                      FontAwesomeIcons.shareFromSquare,
-                      color: Colors.white,
+                if (!PlatformUtils.isTV)
+                  SizedBox(
+                    width: btnWidth,
+                    height: btnHeight,
+                    child: ActionItem(
+                      expand: false,
+                      icon: const Icon(
+                        FontAwesomeIcons.shareFromSquare,
+                        color: Colors.white,
+                      ),
+                      onTap: () => introController.actionShareVideo(context),
+                      semanticsLabel: '分享',
                     ),
-                    onTap: () => introController.actionShareVideo(context),
-                    semanticsLabel: '分享',
                   ),
-                ),
               ],
             ),
         ],
