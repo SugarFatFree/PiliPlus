@@ -3008,7 +3008,7 @@ class _TVControlsPanelState extends State<_TVControlsPanel> {
           spacing: 8,
           children: fits
               .map((f) => ChoiceChip(
-                    label: Text(f.description),
+                    label: Text(f.desc),
                     selected: ctr.videoFit.value == f,
                     onSelected: (_) {
                       ctr.videoFit.value = f;
