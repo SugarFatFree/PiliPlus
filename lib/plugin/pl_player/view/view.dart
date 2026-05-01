@@ -2038,6 +2038,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     if (PlatformUtils.isTV) {
       return _TVPlayerKeyHandler(
         plPlayerController: plPlayerController,
+        videoDetailController: widget.videoDetailController,
         child: child,
       );
     }
@@ -2570,10 +2571,12 @@ class TVKeyHandler {
 class _TVPlayerKeyHandler extends StatefulWidget {
   const _TVPlayerKeyHandler({
     required this.plPlayerController,
+    this.videoDetailController,
     required this.child,
   });
 
   final PlPlayerController plPlayerController;
+  final VideoDetailController? videoDetailController;
   final Widget child;
 
   @override
@@ -2585,23 +2588,14 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   bool _isLongPressing = false;
   double _originalSpeed = 1.0;
   final _showSpeedIndicator = ValueNotifier<double?>(null);
-  // true = 光标在进度条上（默认），false = 光标在按钮上
-  bool _onProgressBar = true;
+  final _showTVControls = ValueNotifier<bool>(false);
 
   bool _handleKeyEvent(KeyEvent event) {
     final key = event.logicalKey;
     final isSelect = key == LogicalKeyboardKey.select ||
         key == LogicalKeyboardKey.enter;
 
-    // 菜单键：切换控制栏
-    if (key == LogicalKeyboardKey.contextMenu && event is KeyDownEvent) {
-      final show = !ctr.showControls.value;
-      ctr.controls = show;
-      if (show) _onProgressBar = true;
-      return true;
-    }
-
-    // 长按 OK 加速（任何时候都处理）
+    // 长按 OK 加速
     if (isSelect && event is KeyRepeatEvent) {
       if (!_isLongPressing) {
         _isLongPressing = true;
@@ -2619,45 +2613,22 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
       return true;
     }
 
-    // 控制栏显示时
-    if (ctr.showControls.value) {
-      if (event is KeyDownEvent) ctr.hideTaskControls();
+    // TV 控制面板显示时：全部交给 Flutter 焦点系统
+    if (_showTVControls.value) return false;
 
-      if (_onProgressBar) {
-        // 光标在进度条上
-        if (isSelect) {
-          // 统一在 KeyUp 处理播放/暂停，防止 KeyDown/KeyUp 跨模式
-          if (event is KeyUpEvent) {
-            _togglePlay();
-          }
-          return true;
-        } else if ((key == LogicalKeyboardKey.arrowLeft ||
-                key == LogicalKeyboardKey.arrowRight) &&
-            (event is KeyDownEvent || event is KeyRepeatEvent)) {
-          if (!ctr.isLive) {
-            final seconds = key == LogicalKeyboardKey.arrowLeft ? -10 : 10;
-            ctr.seekTo(ctr.position + Duration(seconds: seconds));
-          }
-          return true;
-        }
-        return false;
-      } else {
-        // 光标在按钮上：全部交给 Flutter 焦点系统
-        return false;
-      }
-    }
-
-    // 控制栏隐藏时
+    // 控制面板隐藏时
     if (isSelect) {
       if (event is KeyUpEvent) {
-        _togglePlay();
+        if (ctr.playerStatus.isPlaying) {
+          ctr.pause();
+        } else {
+          ctr.play();
+        }
       }
       return true;
     }
 
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-      return false;
-    }
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
 
     if (key == LogicalKeyboardKey.arrowLeft ||
         key == LogicalKeyboardKey.arrowRight) {
@@ -2665,57 +2636,24 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
         final seconds = key == LogicalKeyboardKey.arrowLeft ? -10 : 10;
         ctr.seekTo(ctr.position + Duration(seconds: seconds));
       }
-      ctr.controls = true;
+      return true;
+    } else if (key == LogicalKeyboardKey.contextMenu) {
+      _showTVControls.value = true;
       return true;
     }
     return false;
   }
 
-  void _togglePlay() {
-    if (ctr.playerStatus.isPlaying) {
-      ctr.pause();
-    } else {
-      ctr.play();
-    }
-  }
-
   void _handleNativeKey(String key, String action, bool isRepeat) {
     if (action != 'down') return;
     if (key == 'arrowUp' || key == 'arrowDown') {
-      if (!ctr.showControls.value) {
-        // 控制栏隐藏：显示控制栏，光标默认在进度条上
-        ctr.controls = true;
-        _onProgressBar = true;
-      } else if (_onProgressBar) {
-        // 光标在进度条上：切换到按钮模式
-        _onProgressBar = false;
-        ctr.hideTaskControls();
-        // 聚焦第一个可聚焦按钮
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          final scope = FocusScope.of(context);
-          // 先尝试 nextFocus，如果失败则遍历找第一个可聚焦节点
-          if (!scope.nextFocus()) {
-            scope.requestFocus();
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) scope.nextFocus();
-            });
-          }
-        });
-      } else {
-        // 光标在按钮上：在按钮间移动
-        ctr.hideTaskControls();
-        final direction = key == 'arrowUp'
-            ? TraversalDirection.up
-            : TraversalDirection.down;
-        FocusManager.instance.primaryFocus?.focusInDirection(direction);
+      if (!_showTVControls.value) {
+        _showTVControls.value = true;
       }
     }
   }
 
   static const _channel = MethodChannel('PiliPlus');
-
-  Worker? _controlsWorker;
 
   @override
   void initState() {
@@ -2723,20 +2661,16 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     TVKeyHandler.instance = TVKeyHandler().._callback = _handleNativeKey;
     _channel.invokeMethod('setPlayerActive', {'active': true});
-    // 控制栏隐藏时重置到进度条模式
-    _controlsWorker = ever(ctr.showControls, (visible) {
-      if (!visible) _onProgressBar = true;
-    });
   }
 
   @override
   void dispose() {
-    _controlsWorker?.dispose();
     _channel.invokeMethod('setPlayerActive', {'active': false});
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     TVKeyHandler.instance?._callback = null;
     TVKeyHandler.instance = null;
     _showSpeedIndicator.dispose();
+    _showTVControls.dispose();
     super.dispose();
   }
 
@@ -2744,6 +2678,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   Widget build(BuildContext context) => Stack(
         children: [
           widget.child,
+          // 倍速提示
           ValueListenableBuilder<double?>(
             valueListenable: _showSpeedIndicator,
             builder: (context, speed, _) {
@@ -2770,6 +2705,319 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
               );
             },
           ),
+          // TV 专用控制面板
+          ValueListenableBuilder<bool>(
+            valueListenable: _showTVControls,
+            builder: (context, show, _) {
+              if (!show) return const SizedBox.shrink();
+              return _TVControlsPanel(
+                ctr: ctr,
+                videoDetailCtr: widget.videoDetailController,
+                onClose: () => _showTVControls.value = false,
+              );
+            },
+          ),
         ],
       );
+}
+
+/// TV 专用控制面板 - 自带 FocusTraversalGroup，D-pad 导航正常工作
+class _TVControlsPanel extends StatefulWidget {
+  const _TVControlsPanel({
+    required this.ctr,
+    this.videoDetailCtr,
+    required this.onClose,
+  });
+
+  final PlPlayerController ctr;
+  final VideoDetailController? videoDetailCtr;
+  final VoidCallback onClose;
+
+  @override
+  State<_TVControlsPanel> createState() => _TVControlsPanelState();
+}
+
+class _TVControlsPanelState extends State<_TVControlsPanel> {
+  PlPlayerController get ctr => widget.ctr;
+  Timer? _hideTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _resetHideTimer();
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    super.dispose();
+  }
+
+  void _resetHideTimer() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 8), () {
+      if (mounted) widget.onClose();
+    });
+  }
+
+  Widget _buildBtn({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool autofocus = false,
+    bool isActive = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        autofocus: autofocus,
+        onTap: () {
+          _resetHideTimer();
+          onTap();
+        },
+        focusColor: Colors.white30,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 80,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: isActive ? Colors.blue : Colors.white, size: 28),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isActive ? Colors.blue : Colors.white,
+                  fontSize: 12,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) widget.onClose();
+      },
+      child: GestureDetector(
+        onTap: widget.onClose,
+        child: Container(
+          color: Colors.black54,
+          child: FocusTraversalGroup(
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // 顶部：标题 + 时间
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Obx(() => Text(
+                                '${DurationUtils.formatDuration(ctr.positionSeconds.value)}'
+                                ' / ${DurationUtils.formatDuration(ctr.duration.value.inSeconds)}',
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 16),
+                              )),
+                        ),
+                        Obx(() => Text(
+                              '${ctr.playbackSpeed}x',
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 14),
+                            )),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  // 进度条
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Obx(() {
+                      final duration = ctr.duration.value.inSeconds;
+                      final pos = ctr.positionSeconds.value;
+                      return LinearProgressIndicator(
+                        value: duration > 0 ? pos / duration : 0,
+                        backgroundColor: Colors.white24,
+                        minHeight: 4,
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 24),
+                  // 按钮行
+                  Obx(() {
+                    final isPlaying = ctr.playerStatus.isPlaying;
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _buildBtn(
+                          icon: isPlaying ? Icons.pause : Icons.play_arrow,
+                          label: isPlaying ? '暂停' : '播放',
+                          autofocus: true,
+                          onTap: () {
+                            if (isPlaying) {
+                              ctr.pause();
+                            } else {
+                              ctr.play();
+                            }
+                            setState(() {});
+                          },
+                        ),
+                        _buildBtn(
+                          icon: Icons.replay_10,
+                          label: '后退10s',
+                          onTap: () {
+                            if (!ctr.isLive) {
+                              ctr.seekTo(
+                                  ctr.position - const Duration(seconds: 10));
+                            }
+                          },
+                        ),
+                        _buildBtn(
+                          icon: Icons.forward_10,
+                          label: '前进10s',
+                          onTap: () {
+                            if (!ctr.isLive) {
+                              ctr.seekTo(
+                                  ctr.position + const Duration(seconds: 10));
+                            }
+                          },
+                        ),
+                        _buildBtn(
+                          icon: Icons.speed,
+                          label: '${ctr.playbackSpeed}x',
+                          onTap: _showSpeedPicker,
+                        ),
+                        if (widget.videoDetailCtr != null)
+                          _buildBtn(
+                            icon: Icons.high_quality_outlined,
+                            label: widget.videoDetailCtr!.currentVideoQa.value
+                                    ?.shortDesc ??
+                                '画质',
+                            onTap: _showQualityPicker,
+                          ),
+                        _buildBtn(
+                          icon: ctr.enableShowDanmaku.value
+                              ? Icons.subtitles
+                              : Icons.subtitles_off,
+                          label: ctr.enableShowDanmaku.value ? '弹幕开' : '弹幕关',
+                          isActive: ctr.enableShowDanmaku.value,
+                          onTap: () {
+                            ctr.enableShowDanmaku.value =
+                                !ctr.enableShowDanmaku.value;
+                            setState(() {});
+                          },
+                        ),
+                        _buildBtn(
+                          icon: Icons.aspect_ratio,
+                          label: '画面比例',
+                          onTap: _showFitPicker,
+                        ),
+                      ],
+                    );
+                  }),
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSpeedPicker() {
+    final speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0];
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('播放速度'),
+        content: Wrap(
+          spacing: 8,
+          children: speeds
+              .map((s) => ChoiceChip(
+                    label: Text('${s}x'),
+                    selected: ctr.playbackSpeed == s,
+                    onSelected: (_) {
+                      ctr.setPlaybackSpeed(s);
+                      Navigator.of(ctx).pop();
+                      setState(() {});
+                    },
+                  ))
+              .toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showQualityPicker() {
+    final vdc = widget.videoDetailCtr;
+    if (vdc == null) return;
+    final acceptQuality = vdc.data.acceptQuality;
+    final acceptDesc = vdc.data.acceptDesc;
+    if (acceptQuality == null || acceptDesc == null) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('画质'),
+        content: Wrap(
+          spacing: 8,
+          children: List.generate(
+            acceptQuality.length,
+            (i) => ChoiceChip(
+              label: Text(i < acceptDesc.length ? '${acceptDesc[i]}' : '未知'),
+              selected:
+                  vdc.currentVideoQa.value?.code == acceptQuality[i],
+              onSelected: (_) {
+                vdc.currentVideoQa.value =
+                    VideoQuality.fromCode(acceptQuality[i]);
+                vdc.updatePlayer();
+                Navigator.of(ctx).pop();
+                widget.onClose();
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFitPicker() {
+    final fits = [
+      VideoFitType.contain,
+      VideoFitType.cover,
+      VideoFitType.fill,
+      VideoFitType.fitWidth,
+      VideoFitType.fitHeight,
+    ];
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('画面比例'),
+        content: Wrap(
+          spacing: 8,
+          children: fits
+              .map((f) => ChoiceChip(
+                    label: Text(f.description),
+                    selected: ctr.videoFit.value == f,
+                    onSelected: (_) {
+                      ctr.videoFit.value = f;
+                      Navigator.of(ctx).pop();
+                    },
+                  ))
+              .toList(),
+        ),
+      ),
+    );
+  }
 }
