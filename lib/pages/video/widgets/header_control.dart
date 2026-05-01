@@ -140,7 +140,7 @@ mixin TimeBatteryMixin<T extends StatefulWidget> on State<T> {
   List<Widget>? get timeBatteryWidgets {
     if (_showCurrTime) {
       return [
-        if (_showBatteryLevel) ...[
+        if (_showBatteryLevel && !PlatformUtils.isTV) ...[
           Obx(
             () {
               final batteryLevel = _batteryLevel.value;
@@ -1780,7 +1780,7 @@ class HeaderControlState extends State<HeaderControl>
                 ),
               title,
               // show current datetime
-              if (!PlatformUtils.isTV) ...?timeBatteryWidgets,
+              ...?timeBatteryWidgets,
               if (PlatformUtils.isDesktop && !plPlayerController.isDesktopPip)
                 Obx(() {
                   final isAlwaysOnTop = plPlayerController.isAlwaysOnTop.value;
