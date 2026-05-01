@@ -86,6 +86,12 @@ void main() async {
   Request.setCookie();
   RequestUtils.syncHistoryStatus();
 
+  const MethodChannel('PiliPlus').setMethodCallHandler((call) async {
+    if (call.method == 'keyDebug') {
+      Utils.reportError(call.arguments as String);
+    }
+  });
+
   SmartDialog.config.toast = SmartConfigToast(displayType: .onlyRefresh);
 
   // TV immersive mode

@@ -32,6 +32,9 @@ class MainActivity : AudioServiceActivity() {
     private val isTV = BuildConfig.IS_TV
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && (event.keyCode == KeyEvent.KEYCODE_DPAD_UP || event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN)) {
+            methodChannel.invokeMethod("keyDebug", "Android: keyCode=${event.keyCode} isTV=$isTV BuildConfig.IS_TV=${BuildConfig.IS_TV}")
+        }
         if (isTV) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP,

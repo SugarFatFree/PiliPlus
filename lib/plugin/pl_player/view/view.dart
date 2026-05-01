@@ -2587,7 +2587,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     final controlsVisible = ctr.showControls.value;
 
     if (event is KeyDownEvent) {
-      Utils.reportError('TV_KEY: ${key.keyLabel} (${key.keyId}) ${event.runtimeType}');
+      Utils.reportError('TV_KEY: ${key.keyLabel} (${key.keyId}) PlatformUtils.isTV=${PlatformUtils.isTV}');
     }
 
     // OK 键释放
