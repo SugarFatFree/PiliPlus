@@ -892,20 +892,27 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 
     final flag =
         isFullScreen || plPlayerController.isDesktopPip || maxWidth >= 500;
-    List<BottomControlType> userSpecifyItemRight = [
-      if (isNotFileSource && plPlayerController.showDmChart)
-        BottomControlType.dmChart,
-      if (plPlayerController.isAnim) BottomControlType.superResolution,
-      if (isNotFileSource && plPlayerController.showViewPoints)
-        BottomControlType.viewPoints,
-      if (isNotFileSource && anySeason) BottomControlType.episode,
-      if (flag) BottomControlType.fit,
-      if (isNotFileSource) BottomControlType.aiTranslate,
-      BottomControlType.subtitle,
-      BottomControlType.speed,
-      if (isNotFileSource && flag) BottomControlType.qa,
-      if (!plPlayerController.isDesktopPip) BottomControlType.fullscreen,
-    ];
+    List<BottomControlType> userSpecifyItemRight = PlatformUtils.isTV
+        ? [
+            if (isNotFileSource && anySeason) BottomControlType.episode,
+            BottomControlType.subtitle,
+            BottomControlType.speed,
+            if (isNotFileSource) BottomControlType.qa,
+          ]
+        : [
+            if (isNotFileSource && plPlayerController.showDmChart)
+              BottomControlType.dmChart,
+            if (plPlayerController.isAnim) BottomControlType.superResolution,
+            if (isNotFileSource && plPlayerController.showViewPoints)
+              BottomControlType.viewPoints,
+            if (isNotFileSource && anySeason) BottomControlType.episode,
+            if (flag) BottomControlType.fit,
+            if (isNotFileSource) BottomControlType.aiTranslate,
+            BottomControlType.subtitle,
+            BottomControlType.speed,
+            if (isNotFileSource && flag) BottomControlType.qa,
+            if (!plPlayerController.isDesktopPip) BottomControlType.fullscreen,
+          ];
     return PlayerBar(
       children: [
         Row(
@@ -1814,7 +1821,8 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
             () => mounted,
           ),
 
-        if (isFullScreen || plPlayerController.isDesktopPip) ...[
+        if (!PlatformUtils.isTV &&
+            (isFullScreen || plPlayerController.isDesktopPip)) ...[
           // 锁
           if (plPlayerController.showFsLockBtn)
             ViewSafeArea(

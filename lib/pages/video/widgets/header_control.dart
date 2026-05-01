@@ -1806,7 +1806,7 @@ class HeaderControlState extends State<HeaderControl>
                     ),
                   );
                 }),
-              if (!isFileSource) ...[
+              if (!isFileSource && !PlatformUtils.isTV) ...[
                 if (!isFSOrPip) ...[
                   if (videoDetailCtr.isUgc)
                     SizedBox(
@@ -1883,7 +1883,8 @@ class HeaderControlState extends State<HeaderControl>
                       : const SizedBox.shrink(),
                 ),
               ],
-              if (!isPortrait || isFullScreen || PlatformUtils.isDesktop) ...[
+              if ((!isPortrait || isFullScreen || PlatformUtils.isDesktop) &&
+                  !PlatformUtils.isTV) ...[
                 SizedBox(
                   width: btnWidth,
                   height: btnHeight,
@@ -1948,8 +1949,9 @@ class HeaderControlState extends State<HeaderControl>
                   ),
                 ),
               ),
-              if (Platform.isAndroid ||
-                  (PlatformUtils.isDesktop && !isFullScreen))
+              if (!PlatformUtils.isTV &&
+                  (Platform.isAndroid ||
+                      (PlatformUtils.isDesktop && !isFullScreen)))
                 SizedBox(
                   width: btnWidth,
                   height: btnHeight,
@@ -2047,23 +2049,24 @@ class HeaderControlState extends State<HeaderControl>
                     ),
                   ),
                 ),
-              SizedBox(
-                width: btnWidth,
-                height: btnHeight,
-                child: IconButton(
-                  tooltip: "更多设置",
-                  style: btnStyle,
-                  onPressed: showSettingSheet,
-                  icon: const Icon(
-                    Icons.more_vert_outlined,
-                    size: 19,
-                    color: Colors.white,
+              if (!PlatformUtils.isTV)
+                SizedBox(
+                  width: btnWidth,
+                  height: btnHeight,
+                  child: IconButton(
+                    tooltip: "更多设置",
+                    style: btnStyle,
+                    onPressed: showSettingSheet,
+                    icon: const Icon(
+                      Icons.more_vert_outlined,
+                      size: 19,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
-          if (showFSActionItem)
+          if (showFSActionItem && !PlatformUtils.isTV)
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.start,
