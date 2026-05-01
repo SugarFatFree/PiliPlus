@@ -73,7 +73,7 @@ class _TVLivePageState extends State<TVLivePage> {
                             if (roomId != null) {
                               Get.toNamed(
                                 '/liveRoom',
-                                arguments: {'roomId': roomId},
+                                arguments: roomId,
                               );
                             }
                           },

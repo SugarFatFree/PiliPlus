@@ -53,6 +53,7 @@ class _TVPageState extends State<TVPage> {
         content: const Text('确定退出应用吗？'),
         actions: [
           TextButton(
+            autofocus: true,
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('取消'),
           ),

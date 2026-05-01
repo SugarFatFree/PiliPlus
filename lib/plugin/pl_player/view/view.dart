@@ -2038,7 +2038,6 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
     if (PlatformUtils.isTV) {
       return _TVPlayerKeyHandler(
         plPlayerController: plPlayerController,
-        onMenu: () => _showTVPlayerMenu(context),
         child: child,
       );
     }
@@ -2561,12 +2560,10 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
 class _TVPlayerKeyHandler extends StatefulWidget {
   const _TVPlayerKeyHandler({
     required this.plPlayerController,
-    required this.onMenu,
     required this.child,
   });
 
   final PlPlayerController plPlayerController;
-  final VoidCallback onMenu;
   final Widget child;
 
   @override
@@ -2593,9 +2590,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
         _showSpeedIndicator.value = null;
         return true;
       }
-      // 控制栏可见时，让 Flutter 处理按钮点击
-      if (controlsVisible) return false;
-      // 控制栏隐藏时，短按切换播放/暂停
+      // 短按切换播放/暂停
       if (ctr.playerStatus.isPlaying) {
         ctr.pause();
       } else {
@@ -2609,40 +2604,25 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     }
 
     if (isSelect) {
-      if (event is KeyRepeatEvent) {
-        if (!_isLongPressing) {
-          _isLongPressing = true;
-          _originalSpeed = ctr.playbackSpeed;
-          final boostedSpeed = _originalSpeed + 1.0;
-          ctr.setPlaybackSpeed(boostedSpeed);
-          _showSpeedIndicator.value = boostedSpeed;
-        }
-        return true;
+      if (event is KeyRepeatEvent && !_isLongPressing) {
+        _isLongPressing = true;
+        _originalSpeed = ctr.playbackSpeed;
+        final boostedSpeed = _originalSpeed + 1.0;
+        ctr.setPlaybackSpeed(boostedSpeed);
+        _showSpeedIndicator.value = boostedSpeed;
       }
-      // 控制栏可见时，让 Flutter 处理（按钮聚焦点击）
-      if (controlsVisible) return false;
-      // 控制栏隐藏时，拦截 KeyDown 等 KeyUp
       return true;
     } else if (key == LogicalKeyboardKey.arrowLeft) {
-      if (controlsVisible) return false;
       ctr.seekTo(ctr.position - const Duration(seconds: 10));
       ctr.controls = true;
       return true;
     } else if (key == LogicalKeyboardKey.arrowRight) {
-      if (controlsVisible) return false;
       ctr.seekTo(ctr.position + const Duration(seconds: 10));
       ctr.controls = true;
       return true;
     } else if (key == LogicalKeyboardKey.arrowUp ||
         key == LogicalKeyboardKey.arrowDown) {
-      if (!controlsVisible) {
-        ctr.controls = true;
-        return true;
-      }
-      // 控制栏可见时，放行方向键让焦点系统导航
-      return false;
-    } else if (key == LogicalKeyboardKey.contextMenu) {
-      widget.onMenu();
+      ctr.controls = !ctr.showControls.value;
       return true;
     }
     return false;
