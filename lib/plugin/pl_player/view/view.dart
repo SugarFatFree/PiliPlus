@@ -2590,14 +2590,31 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     final key = event.logicalKey;
     final isSelect = key == LogicalKeyboardKey.select ||
         key == LogicalKeyboardKey.enter;
-    final isUpDown = key == LogicalKeyboardKey.arrowUp ||
-        key == LogicalKeyboardKey.arrowDown ||
-        key == LogicalKeyboardKey.audioVolumeUp ||
-        key == LogicalKeyboardKey.audioVolumeDown;
-    final controlsVisible = ctr.showControls.value;
 
+    // 控制栏显示时：只处理长按加速，其余全部交给 Flutter 焦点系统
+    if (ctr.showControls.value) {
+      if (isSelect) {
+        if (event is KeyUpEvent && _isLongPressing) {
+          ctr.setPlaybackSpeed(_originalSpeed);
+          _isLongPressing = false;
+          _showSpeedIndicator.value = null;
+          return true;
+        }
+        if (event is KeyRepeatEvent && !_isLongPressing) {
+          _isLongPressing = true;
+          _originalSpeed = ctr.playbackSpeed;
+          final boostedSpeed = _originalSpeed + 1.0;
+          ctr.setPlaybackSpeed(boostedSpeed);
+          _showSpeedIndicator.value = boostedSpeed;
+          return true;
+        }
+      }
+      // 有操作就重置自动隐藏计时器
+      if (event is KeyDownEvent) ctr.hideTaskControls();
+      return false;
+    }
 
-    // OK 键释放
+    // 控制栏隐藏时：拦截所有按键
     if (event is KeyUpEvent && isSelect) {
       if (_isLongPressing) {
         ctr.setPlaybackSpeed(_originalSpeed);
@@ -2634,12 +2651,6 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
       }
       ctr.controls = true;
       return true;
-    } else if (isUpDown) {
-      if (!controlsVisible) {
-        ctr.controls = true;
-        return true;
-      }
-      return false;
     }
     return false;
   }
@@ -2650,6 +2661,8 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
       if (!ctr.showControls.value) {
         ctr.controls = true;
       } else {
+        // 控制栏显示时：移动焦点并重置自动隐藏
+        ctr.hideTaskControls();
         final direction = key == 'arrowUp'
             ? TraversalDirection.up
             : TraversalDirection.down;
