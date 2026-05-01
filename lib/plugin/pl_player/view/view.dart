@@ -2591,7 +2591,13 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     final isSelect = key == LogicalKeyboardKey.select ||
         key == LogicalKeyboardKey.enter;
 
-    // 控制栏显示时：只处理长按加速，其余全部交给 Flutter 焦点系统
+    // 菜单键：切换控制栏
+    if (key == LogicalKeyboardKey.contextMenu && event is KeyDownEvent) {
+      ctr.controls = !ctr.showControls.value;
+      return true;
+    }
+
+    // 控制栏显示时：长按加速 + 其余交给 Flutter 焦点系统
     if (ctr.showControls.value) {
       if (isSelect) {
         if (event is KeyUpEvent && _isLongPressing) {
@@ -2609,7 +2615,6 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
           return true;
         }
       }
-      // 有操作就重置自动隐藏计时器
       if (event is KeyDownEvent) ctr.hideTaskControls();
       return false;
     }

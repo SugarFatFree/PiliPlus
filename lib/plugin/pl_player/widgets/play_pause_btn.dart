@@ -66,6 +66,7 @@ class PlayOrPauseButtonState extends State<PlayOrPauseButton>
           ? Material(
               color: Colors.transparent,
               child: InkWell(
+                autofocus: true,
                 onTap: widget.plPlayerController.onDoubleTapCenter,
                 borderRadius: BorderRadius.circular(8),
                 focusColor: Colors.white24,
