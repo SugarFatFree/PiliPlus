@@ -2771,7 +2771,6 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   }
 
   void _handleNativeKey(String key, String action, bool isRepeat) {
-    Utils.reportError('TV_NATIVE: key=$key action=$action panel=${_panelRow.value} subMenu=$_isSubMenuOpen');
     if (_isSubMenuOpen) {
       if (action == 'down') _subMenuKeyCallback?.call(key);
       return;
@@ -2794,22 +2793,17 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   // 子菜单按键回调
   void Function(String)? _subMenuKeyCallback;
 
-  static const _channel = MethodChannel('PiliPlus');
-
   @override
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     _registerNativeHandler();
-    _channel.invokeMethod('setPlayerActive', {'active': true});
-    Utils.reportError('TV_INIT: initState hashCode=$hashCode');
   }
 
   @override
   void didUpdateWidget(covariant _TVPlayerKeyHandler oldWidget) {
     super.didUpdateWidget(oldWidget);
     _registerNativeHandler();
-    Utils.reportError('TV_INIT: didUpdateWidget hashCode=$hashCode');
   }
 
   void _registerNativeHandler() {
@@ -2820,12 +2814,9 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   void dispose() {
     _hideTimer?.cancel();
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
-    final isOurs = TVKeyHandler.instance?._callback == _handleNativeKey;
-    Utils.reportError('TV_INIT: dispose hashCode=$hashCode isOurs=$isOurs');
-    if (isOurs) {
+    if (TVKeyHandler.instance?._callback == _handleNativeKey) {
       TVKeyHandler.instance?._callback = null;
       TVKeyHandler.instance = null;
-      _channel.invokeMethod('setPlayerActive', {'active': false});
     }
     _showSpeedIndicator.dispose();
     _panelRow.dispose();

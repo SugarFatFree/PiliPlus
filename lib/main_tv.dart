@@ -90,11 +90,18 @@ void main() async {
   const MethodChannel('PiliPlus').setMethodCallHandler((call) async {
     if (call.method == 'tvKey') {
       final args = call.arguments as Map;
-      TVKeyHandler.instance?.handleNativeKey(
-        args['key'] as String,
-        args['action'] as String,
-        args['isRepeat'] as bool,
-      );
+      final key = args['key'] as String;
+      final action = args['action'] as String;
+      final isRepeat = args['isRepeat'] as bool;
+      final handler = TVKeyHandler.instance;
+      if (handler != null) {
+        handler.handleNativeKey(key, action, isRepeat);
+      } else {
+        // 播放器未激活时，执行默认行为
+        if (key == 'back' && action == 'down') {
+          Get.back();
+        }
+      }
     }
   });
 

@@ -31,10 +31,8 @@ class MainActivity : AudioServiceActivity() {
     private var isFoldable = false
     private val isTV = BuildConfig.IS_TV
 
-    var playerActive = false
-
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (isTV && playerActive) {
+        if (isTV) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP,
                 KeyEvent.KEYCODE_DPAD_DOWN,
@@ -66,11 +64,6 @@ class MainActivity : AudioServiceActivity() {
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "PiliPlus")
         methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
-                "setPlayerActive" -> {
-                    playerActive = call.argument<Boolean>("active") ?: false
-                    result.success(null)
-                    return@setMethodCallHandler
-                }
                 "back" -> back();
 
                 "biliSendCommAntifraud" -> {
