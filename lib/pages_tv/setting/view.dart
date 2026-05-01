@@ -12,6 +12,7 @@ import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:path_provider/path_provider.dart';
 
 class TVSettingPage extends StatefulWidget {
   const TVSettingPage({super.key});
@@ -131,7 +132,7 @@ class _TVSettingPageState extends State<TVSettingPage> {
                 leading:
                     Icon(Icons.save_alt, color: theme.colorScheme.primary),
                 title: const Text('导出日志'),
-                subtitle: const Text('保存到 Download/PiliPlus_logs.txt'),
+                subtitle: const Text('保存到应用外部存储目录'),
               ),
             ),
 
@@ -211,17 +212,17 @@ class _TVSettingPageState extends State<TVSettingPage> {
         return;
       }
 
-      String? exportPath;
-      final appDir = Directory('/sdcard/Download/PiliPlus');
-      if (!appDir.existsSync()) {
-        await appDir.create(recursive: true);
+      final extDir = (await getExternalStorageDirectory())!;
+      final logsDir = Directory('${extDir.path}/logs');
+      if (!logsDir.existsSync()) {
+        await logsDir.create(recursive: true);
       }
       final timestamp = DateTime.now()
           .toIso8601String()
           .replaceAll(':', '-')
           .split('.')
           .first;
-      exportPath = '${appDir.path}/logs_$timestamp.txt';
+      final exportPath = '${logsDir.path}/logs_$timestamp.txt';
 
       await logFile.copy(exportPath);
       SmartDialog.showToast('日志已导出到: $exportPath',
