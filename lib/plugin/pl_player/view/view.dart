@@ -2666,14 +2666,20 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   }
 
   bool _handleKeyEvent(KeyEvent event) {
-    // 子菜单打开时放行所有按键，让 Flutter 对话框自行处理
-    if (_isSubMenuOpen) return false;
-
     final key = event.logicalKey;
     final isSelect = key == LogicalKeyboardKey.select ||
         key == LogicalKeyboardKey.enter;
+    final isBack = key == LogicalKeyboardKey.goBack ||
+        key == LogicalKeyboardKey.escape;
 
-    // 长按 OK 加速
+    // 子菜单打开时：只处理返回键关闭子菜单，其余放行
+    if (_isSubMenuOpen) {
+      // 子菜单的 subKeyHandler 会处理 OK/上下/返回
+      // 这里不拦截，让 subKeyHandler 先处理
+      return false;
+    }
+
+    // 长按 OK 加速（任何时候）
     if (isSelect && event is KeyRepeatEvent) {
       if (!_isLongPressing) {
         _isLongPressing = true;
@@ -2691,10 +2697,10 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     }
 
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-      return isSelect; // 消费 OK 的 KeyUp
+      return isSelect;
     }
 
-    // 面板隐藏时
+    // === 面板隐藏时 ===
     if (_panelRow.value == -1) {
       if (isSelect) {
         if (ctr.playerStatus.isPlaying) {
@@ -2714,15 +2720,17 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
       } else if (key == LogicalKeyboardKey.contextMenu) {
         _showPanel();
         return true;
-      } else if (key == LogicalKeyboardKey.goBack ||
-          key == LogicalKeyboardKey.escape) {
-        return false; // 放行返回键
+      } else if (isBack) {
+        return false; // 放行，退出播放页
       }
       return false;
     }
 
-    // 面板显示时
-    if (isSelect) {
+    // === 面板显示时 ===
+    if (isBack) {
+      _panelRow.value = -1; // 关闭面板，不退出播放页
+      return true;
+    } else if (isSelect) {
       _onKey('ok');
       return true;
     } else if (key == LogicalKeyboardKey.arrowLeft) {
@@ -2731,15 +2739,11 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     } else if (key == LogicalKeyboardKey.arrowRight) {
       _onKey('right');
       return true;
-    } else if (key == LogicalKeyboardKey.goBack ||
-        key == LogicalKeyboardKey.escape) {
-      _onKey('back');
-      return true;
     } else if (key == LogicalKeyboardKey.contextMenu) {
       _panelRow.value = -1;
       return true;
     }
-    return false;
+    return true; // 面板显示时消费所有未处理的键
   }
 
   void _handleNativeKey(String key, String action, bool isRepeat) {
@@ -2765,8 +2769,19 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
-    TVKeyHandler.instance = TVKeyHandler().._callback = _handleNativeKey;
+    _registerNativeHandler();
     _channel.invokeMethod('setPlayerActive', {'active': true});
+  }
+
+  @override
+  void didUpdateWidget(covariant _TVPlayerKeyHandler oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 切集时重新注册，确保 callback 有效
+    _registerNativeHandler();
+  }
+
+  void _registerNativeHandler() {
+    TVKeyHandler.instance = TVKeyHandler().._callback = _handleNativeKey;
   }
 
   @override
@@ -2816,7 +2831,16 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
       barrierColor: Colors.black38,
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (ctx, _, __) {
-        return Align(
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop && !handled) {
+              handled = true;
+              Navigator.of(ctx).pop();
+              completer.complete(null);
+            }
+          },
+          child: Align(
           alignment: Alignment.centerRight,
           child: Material(
             color: const Color(0xF0181818),
@@ -2883,7 +2907,8 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
               ),
             ),
           ),
-        );
+        ),
+      );
       },
     ).then((_) {
       if (!handled && !completer.isCompleted) completer.complete(null);

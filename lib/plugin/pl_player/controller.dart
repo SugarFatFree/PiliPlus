@@ -853,7 +853,7 @@ class PlPlayerController with BlockConfigMixin {
     if (dataSource.audioSource case final audio? when (audio.isNotEmpty)) {
       if (onlyPlayAudio.value) {
         video = audio;
-      } else if (!PlatformUtils.isTV) {
+      } else {
         extras['audio-files'] =
             '"${Platform.isWindows ? audio.replaceAll(';', r'\;') : audio.replaceAll(':', r'\:')}"';
       }
