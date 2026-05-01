@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:PiliPlus/pages/setting/pages/logs.dart';
 import 'package:PiliPlus/pages_tv/common/tv_focus_wrapper.dart';
 import 'package:PiliPlus/pages_tv/common/tv_page.dart';
 import 'package:PiliPlus/services/account_service.dart';
+import 'package:PiliPlus/services/logger.dart';
 import 'package:PiliPlus/utils/accounts.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
@@ -120,6 +123,17 @@ class _TVSettingPageState extends State<TVSettingPage> {
                 subtitle: const Text('查看应用运行日志'),
               ),
             ),
+            TVFocusWrapper(
+              scaleFactor: 1.02,
+              borderRadius: 12,
+              onSelect: () => _exportLogs(context),
+              child: ListTile(
+                leading:
+                    Icon(Icons.save_alt, color: theme.colorScheme.primary),
+                title: const Text('导出日志'),
+                subtitle: const Text('保存到 Download/PiliPlus_logs.txt'),
+              ),
+            ),
 
             const SizedBox(height: 16),
             _SectionTitle('关于', theme),
@@ -187,6 +201,35 @@ class _TVSettingPageState extends State<TVSettingPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _exportLogs(BuildContext context) async {
+    try {
+      final logFile = await LoggerUtils.getLogsPath();
+      if (!logFile.existsSync() || logFile.lengthSync() == 0) {
+        SmartDialog.showToast('暂无日志');
+        return;
+      }
+
+      String? exportPath;
+      final appDir = Directory('/sdcard/Download/PiliPlus');
+      if (!appDir.existsSync()) {
+        await appDir.create(recursive: true);
+      }
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
+      exportPath = '${appDir.path}/logs_$timestamp.txt';
+
+      await logFile.copy(exportPath);
+      SmartDialog.showToast('日志已导出到: $exportPath',
+          displayTime: const Duration(seconds: 5));
+    } catch (e) {
+      SmartDialog.showToast('导出失败: $e',
+          displayTime: const Duration(seconds: 3));
+    }
   }
 
   void _showQualitySelector(BuildContext context) {
