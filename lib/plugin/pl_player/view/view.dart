@@ -2649,6 +2649,12 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     if (key == 'arrowUp' || key == 'arrowDown') {
       if (!_showTVControls.value) {
         _showTVControls.value = true;
+      } else {
+        // 面板显示时：上下键在按钮间导航
+        final direction = key == 'arrowUp'
+            ? TraversalDirection.up
+            : TraversalDirection.down;
+        FocusManager.instance.primaryFocus?.focusInDirection(direction);
       }
     }
   }
@@ -2745,6 +2751,12 @@ class _TVControlsPanelState extends State<_TVControlsPanel> {
   void initState() {
     super.initState();
     _resetHideTimer();
+    // 确保面板获得焦点
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        FocusScope.of(context).nextFocus();
+      }
+    });
   }
 
   @override
