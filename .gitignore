@@ -3,6 +3,9 @@
 *.log
 *.pyc
 *.swp
+
+# Bug fix notes (local only)
+BUGFIX.md
 .DS_Store
 .atom/
 .buildlog/

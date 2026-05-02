@@ -19,7 +19,7 @@ import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:catcher_2/catcher_2.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -97,7 +97,8 @@ void main() async {
       if (cb != null) {
         cb(args['key'] as String, args['action'] as String, args['isRepeat'] as bool);
       } else {
-        // 播放器不活跃，关闭拦截
+        // 播放器不活跃，关闭拦截 (lazy cleanup)
+        debugPrint('[TV] main_tv lazy cleanup: callback is null for key=${args['key']}, sending setPlayerActive(false)');
         const MethodChannel('PiliPlus').invokeMethod('setPlayerActive', {'active': false});
       }
     }

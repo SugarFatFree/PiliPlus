@@ -1613,51 +1613,52 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
           ),
         ),
 
-        // 头部、底部控制条
-        Positioned.fill(
-          top: -1,
-          bottom: -1,
-          child: ClipRect(
-            child: RepaintBoundary(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  AppBarAni(
-                    isTop: true,
-                    controller: animationController,
-                    isFullScreen: isFullScreen,
-                    removeSafeArea: plPlayerController.removeSafeArea,
-                    child: plPlayerController.isDesktopPip
-                        ? GestureDetector(
-                            behavior: HitTestBehavior.translucent,
-                            onPanStart: (_) => windowManager.startDragging(),
-                            child: widget.headerControl,
-                          )
-                        : widget.headerControl,
-                  ),
-                  AppBarAni(
-                    isTop: false,
-                    controller: animationController,
-                    isFullScreen: isFullScreen,
-                    removeSafeArea: plPlayerController.removeSafeArea,
-                    child:
-                        widget.bottomControl ??
-                        BottomControl(
-                          maxWidth: maxWidth,
-                          isFullScreen: isFullScreen,
-                          controller: plPlayerController,
-                          videoDetailController: videoDetailController,
-                          buildBottomControl: () => buildBottomControl(
-                            videoDetailController,
-                            maxWidth > maxHeight,
+        // 头部、底部控制条 (TV has its own _TVControlsPanel, skip mobile controls)
+        if (!PlatformUtils.isTV)
+          Positioned.fill(
+            top: -1,
+            bottom: -1,
+            child: ClipRect(
+              child: RepaintBoundary(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    AppBarAni(
+                      isTop: true,
+                      controller: animationController,
+                      isFullScreen: isFullScreen,
+                      removeSafeArea: plPlayerController.removeSafeArea,
+                      child: plPlayerController.isDesktopPip
+                          ? GestureDetector(
+                              behavior: HitTestBehavior.translucent,
+                              onPanStart: (_) => windowManager.startDragging(),
+                              child: widget.headerControl,
+                            )
+                          : widget.headerControl,
+                    ),
+                    AppBarAni(
+                      isTop: false,
+                      controller: animationController,
+                      isFullScreen: isFullScreen,
+                      removeSafeArea: plPlayerController.removeSafeArea,
+                      child:
+                          widget.bottomControl ??
+                          BottomControl(
+                            maxWidth: maxWidth,
+                            isFullScreen: isFullScreen,
+                            controller: plPlayerController,
+                            videoDetailController: videoDetailController,
+                            buildBottomControl: () => buildBottomControl(
+                              videoDetailController,
+                              maxWidth > maxHeight,
+                            ),
                           ),
-                        ),
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
 
         // Positioned(
         //   right: 25,
@@ -2786,6 +2787,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   }
 
   void _handleNativeKey(String key, String action, bool isRepeat) {
+    debugPrint('[TV] _handleNativeKey: key=$key action=$action isRepeat=$isRepeat panel=${_panelRow.value} subMenu=${_isSubMenuOpen.value}');
     if (action != 'down') return;
     if (_isSubMenuOpen.value) {
       _subMenuNativeKeyCallback?.call(key);
@@ -2811,6 +2813,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   @override
   void initState() {
     super.initState();
+    debugPrint('[TV] _TVPlayerKeyHandlerState.initState: registering handlers, hashCode=$hashCode');
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     TVKeyHandler.instance = TVKeyHandler()..callback = _handleNativeKey;
     const MethodChannel('PiliPlus').invokeMethod('setPlayerActive', {'active': true});
@@ -2818,6 +2821,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
 
   @override
   void dispose() {
+    debugPrint('[TV] _TVPlayerKeyHandlerState.dispose: cleaning up, hashCode=$hashCode');
     _hideTimer?.cancel();
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     // 清空 callback 但保留 instance，不发 playerActive=false
@@ -3069,13 +3073,15 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: _panelRow,
+    listenable: Listenable.merge([_panelRow, _isSubMenuOpen]),
     builder: (context, _) => PopScope(
       canPop: _panelRow.value == -1 && !_isSubMenuOpen.value,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _panelRow.value != -1) {
           _panelRow.value = -1;
         }
+        // When sub-menu is open, the dialog's own PopScope handles closing it.
+        // We just need canPop=false (above) to prevent popping the video page.
       },
       child: Stack(
         children: [
