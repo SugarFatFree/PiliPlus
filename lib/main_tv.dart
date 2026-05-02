@@ -93,13 +93,18 @@ void main() async {
   const MethodChannel('PiliPlus').setMethodCallHandler((call) async {
     if (call.method == 'tvKey') {
       final args = call.arguments as Map;
+      final key = args['key'] as String;
+      final action = args['action'] as String;
+      final isRepeat = args['isRepeat'] as bool;
       final cb = TVKeyHandler.instance?.callback;
       if (cb != null) {
-        cb(args['key'] as String, args['action'] as String, args['isRepeat'] as bool);
-      } else {
-        // 播放器不活跃，关闭拦截 (lazy cleanup)
-        Utils.reportError('[TV] main_tv lazy cleanup: callback is null for key=${args['key']}, sending setPlayerActive(false)');
-        const MethodChannel('PiliPlus').invokeMethod('setPlayerActive', {'active': false});
+        cb(key, action, isRepeat);
+      } else if (action == 'down') {
+        // 非播放器页面：模拟焦点移动
+        final direction = key == 'arrowUp'
+            ? TraversalDirection.up
+            : TraversalDirection.down;
+        FocusManager.instance.primaryFocus?.focusInDirection(direction);
       }
     }
   });

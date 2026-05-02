@@ -2816,7 +2816,6 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     Utils.reportError('[TV] _TVPlayerKeyHandlerState.initState: registering handlers, hashCode=$hashCode');
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     TVKeyHandler.instance = TVKeyHandler()..callback = _handleNativeKey;
-    const MethodChannel('PiliPlus').invokeMethod('setPlayerActive', {'active': true});
   }
 
   @override
@@ -2824,7 +2823,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     Utils.reportError('[TV] _TVPlayerKeyHandlerState.dispose: cleaning up, hashCode=$hashCode');
     _hideTimer?.cancel();
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
-    // 清空 callback 但保留 instance，不发 playerActive=false
+    // 清空 callback 但保留 instance
     // （避免异步消息乱序导致第二个视频 playerActive 被覆盖为 false）
     // 首页通过 main_tv.dart 的 lazy cleanup 恢复
     TVKeyHandler.instance?.callback = null;
