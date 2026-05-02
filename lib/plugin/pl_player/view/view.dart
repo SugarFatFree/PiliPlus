@@ -2584,7 +2584,7 @@ class _TVPlayerKeyHandler extends StatefulWidget {
 
 class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   PlPlayerController get ctr => widget.plPlayerController;
-  bool _isSubMenuOpen = false;
+  final _isSubMenuOpen = ValueNotifier<bool>(false);
   bool _isLongPressing = false;
   double _originalSpeed = 1.0;
   final _showSpeedIndicator = ValueNotifier<double?>(null);
@@ -2671,7 +2671,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
         key == LogicalKeyboardKey.escape;
 
     // Sub-menu open: let the sub-menu's own HardwareKeyboard handler take priority
-    if (_isSubMenuOpen) {
+    if (_isSubMenuOpen.value) {
       return false;
     }
 
@@ -2787,7 +2787,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
 
   void _handleNativeKey(String key, String action, bool isRepeat) {
     if (action != 'down') return;
-    if (_isSubMenuOpen) {
+    if (_isSubMenuOpen.value) {
       _subMenuNativeKeyCallback?.call(key);
       return;
     }
@@ -2820,11 +2820,14 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   void dispose() {
     _hideTimer?.cancel();
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
-    // 只清空 callback，不清空 instance——避免第二个视频的空隙期问题
+    // 清空 callback 但保留 instance（避免第二个视频空隙期问题）
+    // 主动关闭 playerActive（避免首页首次按键被吞）
     TVKeyHandler.instance?._callback = null;
+    const MethodChannel('PiliPlus').invokeMethod('setPlayerActive', {'active': false});
     _showSpeedIndicator.dispose();
     _panelRow.dispose();
     _btnIndex.dispose();
+    _isSubMenuOpen.dispose();
     super.dispose();
   }
 
@@ -2833,7 +2836,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     required String title,
     required List<_TVDialogOption<T>> options,
   }) async {
-    _isSubMenuOpen = true;
+    _isSubMenuOpen.value = true;
     _hideTimer?.cancel();
     int selectedIndex = options.indexWhere((o) => o.isSelected);
     if (selectedIndex < 0) selectedIndex = 0;
@@ -2946,7 +2949,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
 
     // OK 和返回键处理
     bool subKeyHandler(KeyEvent event) {
-      if (_isSubMenuOpen && event is KeyDownEvent) {
+      if (_isSubMenuOpen && (event is KeyDownEvent || event is KeyRepeatEvent)) {
         final k = event.logicalKey;
         if (k == LogicalKeyboardKey.select || k == LogicalKeyboardKey.enter) {
           if (!handled) {
@@ -2981,7 +2984,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     final result = await completer.future;
     HardwareKeyboard.instance.removeHandler(subKeyHandler);
     _subMenuNativeKeyCallback = null;
-    _isSubMenuOpen = false;
+    _isSubMenuOpen.value = false;
     _resetHideTimer();
     return result;
   }
@@ -3068,7 +3071,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: _panelRow,
     builder: (context, _) => PopScope(
-      canPop: _panelRow.value == -1 && !_isSubMenuOpen,
+      canPop: _panelRow.value == -1 && !_isSubMenuOpen.value,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _panelRow.value != -1) {
           _panelRow.value = -1;
@@ -3098,7 +3101,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
           ),
           // TV control panel
           ListenableBuilder(
-            listenable: Listenable.merge([_panelRow, _btnIndex]),
+            listenable: Listenable.merge([_panelRow, _btnIndex, _isSubMenuOpen]),
             builder: (context, _) {
               if (_panelRow.value == -1) return const SizedBox.shrink();
               return Obx(() => _buildPanel());
