@@ -2559,6 +2559,14 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   }
 }
 
+class TVKeyHandler {
+  static TVKeyHandler? instance;
+  void Function(String key, String action, bool isRepeat)? _callback;
+  void handleNativeKey(String key, String action, bool isRepeat) {
+    _callback?.call(key, action, isRepeat);
+  }
+}
+
 class _TVPlayerKeyHandler extends StatefulWidget {
   const _TVPlayerKeyHandler({
     required this.plPlayerController,
@@ -2777,16 +2785,43 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     return true;
   }
 
+  void _handleNativeKey(String key, String action, bool isRepeat) {
+    if (action != 'down') return;
+    if (_isSubMenuOpen) {
+      _subMenuNativeKeyCallback?.call(key);
+      return;
+    }
+    if (key == 'arrowUp' || key == 'arrowDown') {
+      final isUp = key == 'arrowUp';
+      if (_panelRow.value == -1) {
+        _showPanel();
+      } else if (_panelRow.value == 0 && !isUp) {
+        _panelRow.value = 1;
+        _resetHideTimer();
+      } else if (_panelRow.value == 1 && isUp) {
+        _panelRow.value = 0;
+        _resetHideTimer();
+      }
+    }
+  }
+
+  // 子菜单的上下键回调
+  void Function(String)? _subMenuNativeKeyCallback;
+
   @override
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+    TVKeyHandler.instance = TVKeyHandler().._callback = _handleNativeKey;
+    const MethodChannel('PiliPlus').invokeMethod('setPlayerActive', {'active': true});
   }
 
   @override
   void dispose() {
     _hideTimer?.cancel();
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    // 只清空 callback，不清空 instance——避免第二个视频的空隙期问题
+    TVKeyHandler.instance?._callback = null;
     _showSpeedIndicator.dispose();
     _panelRow.dispose();
     _btnIndex.dispose();
@@ -2806,6 +2841,18 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     final completer = Completer<T?>();
     late StateSetter setSheetState;
     bool handled = false;
+
+    _subMenuNativeKeyCallback = (key) {
+      if (key == 'arrowUp') {
+        setSheetState(() {
+          selectedIndex = (selectedIndex - 1).clamp(0, options.length - 1);
+        });
+      } else if (key == 'arrowDown') {
+        setSheetState(() {
+          selectedIndex = (selectedIndex + 1).clamp(0, options.length - 1);
+        });
+      }
+    };
 
     showGeneralDialog(
       context: context,
@@ -2933,6 +2980,7 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     HardwareKeyboard.instance.addHandler(subKeyHandler);
     final result = await completer.future;
     HardwareKeyboard.instance.removeHandler(subKeyHandler);
+    _subMenuNativeKeyCallback = null;
     _isSubMenuOpen = false;
     _resetHideTimer();
     return result;
