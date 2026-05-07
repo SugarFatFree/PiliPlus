@@ -2587,6 +2587,9 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
   PlPlayerController get ctr => widget.plPlayerController;
   final _isSubMenuOpen = ValueNotifier<bool>(false);
   bool _isLongPressing = false;
+  // True after we consumed a BACK KeyDown that closed a panel — used to also consume the matching KeyUp
+  // so Android's default onKeyUp(BACK) → onBackPressed doesn't fire and exit the video page.
+  bool _backConsumed = false;
   double _originalSpeed = 1.0;
   final _showSpeedIndicator = ValueNotifier<double?>(null);
 
@@ -2671,6 +2674,35 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
     final isBack = key == LogicalKeyboardKey.goBack ||
         key == LogicalKeyboardKey.escape;
 
+    // === BACK key (handle BEFORE the KeyUp early-return, otherwise Android's
+    // default onKeyUp(BACK) → onBackPressed will fire and exit the video page) ===
+    if (isBack) {
+      if (_isSubMenuOpen.value) {
+        // Sub-menu visible: let subKeyHandler handle it (it consumes all BACK events)
+        return false;
+      }
+      if (event is KeyDownEvent) {
+        if (_panelRow.value != -1) {
+          // Main panel visible: close it and remember to consume the matching KeyUp
+          _panelRow.value = -1;
+          _backConsumed = true;
+          return true;
+        }
+        // Nothing visible: let PopScope/system handle (exit video page)
+        _backConsumed = false;
+        return false;
+      }
+      if (event is KeyUpEvent || event is KeyRepeatEvent) {
+        // If we consumed the KeyDown, consume the rest of this BACK press too
+        if (_backConsumed) {
+          if (event is KeyUpEvent) _backConsumed = false;
+          return true;
+        }
+        return false;
+      }
+      return false;
+    }
+
     // Sub-menu open: let the sub-menu's own HardwareKeyboard handler take priority
     if (_isSubMenuOpen.value) {
       return false;
@@ -2719,17 +2751,6 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
         key == LogicalKeyboardKey.arrowDown ||
         key == LogicalKeyboardKey.audioVolumeUp ||
         key == LogicalKeyboardKey.audioVolumeDown;
-
-    // === BACK key ===
-    if (isBack) {
-      if (_panelRow.value != -1) {
-        // Panel shown: close panel
-        _panelRow.value = -1;
-        return true;
-      }
-      // Panel hidden: let PopScope / system handle navigation
-      return false;
-    }
 
     // === Panel hidden ===
     if (_panelRow.value == -1) {
@@ -2952,33 +2973,42 @@ class _TVPlayerKeyHandlerState extends State<_TVPlayerKeyHandler> {
 
     // OK 和返回键处理
     bool subKeyHandler(KeyEvent event) {
-      if (_isSubMenuOpen.value && (event is KeyDownEvent || event is KeyRepeatEvent)) {
-        final k = event.logicalKey;
-        if (k == LogicalKeyboardKey.select || k == LogicalKeyboardKey.enter) {
-          if (!handled) {
-            handled = true;
-            Navigator.of(context).pop();
-            completer.complete(options[selectedIndex].value);
-          }
-          return true;
-        } else if (k == LogicalKeyboardKey.goBack || k == LogicalKeyboardKey.escape) {
-          if (!handled) {
-            handled = true;
-            Navigator.of(context).pop();
-            completer.complete(null);
-          }
-          return true;
-        } else if (k == LogicalKeyboardKey.arrowUp) {
-          setSheetState(() {
-            selectedIndex = (selectedIndex - 1).clamp(0, options.length - 1);
-          });
-          return true;
-        } else if (k == LogicalKeyboardKey.arrowDown) {
-          setSheetState(() {
-            selectedIndex = (selectedIndex + 1).clamp(0, options.length - 1);
-          });
-          return true;
+      if (!_isSubMenuOpen.value) return false;
+      final k = event.logicalKey;
+
+      // BACK：消费所有事件类型（KeyDown 关闭子菜单，KeyUp 也要消费防止 onBackPressed
+      // 误关主菜单。设 _backConsumed=true，使 _isSubMenuOpen 变 false 后 _handleKeyEvent
+      // 也能消费匹配的 KeyUp）
+      if (k == LogicalKeyboardKey.goBack || k == LogicalKeyboardKey.escape) {
+        if (event is KeyDownEvent && !handled) {
+          handled = true;
+          _backConsumed = true;
+          Navigator.of(context).pop();
+          completer.complete(null);
         }
+        return true;
+      }
+
+      // 其他键只在 KeyDown/KeyRepeat 时处理
+      if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
+
+      if (k == LogicalKeyboardKey.select || k == LogicalKeyboardKey.enter) {
+        if (!handled) {
+          handled = true;
+          Navigator.of(context).pop();
+          completer.complete(options[selectedIndex].value);
+        }
+        return true;
+      } else if (k == LogicalKeyboardKey.arrowUp) {
+        setSheetState(() {
+          selectedIndex = (selectedIndex - 1).clamp(0, options.length - 1);
+        });
+        return true;
+      } else if (k == LogicalKeyboardKey.arrowDown) {
+        setSheetState(() {
+          selectedIndex = (selectedIndex + 1).clamp(0, options.length - 1);
+        });
+        return true;
       }
       return false;
     }
