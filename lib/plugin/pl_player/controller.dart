@@ -50,7 +50,7 @@ import 'package:easy_debounce/easy_throttle.dart';
 import 'package:floating/floating.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show HapticFeedback, DeviceOrientation;
+import 'package:flutter/services.dart' show DeviceOrientation, HapticFeedback, SystemChrome, SystemUiMode;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:get/get.dart';
@@ -691,7 +691,8 @@ class PlPlayerController with BlockConfigMixin {
       // 数据加载完成
       dataStatus.value = DataStatus.loaded;
 
-      if (autoFullScreenFlag && autoEnterFullScreen) {
+      if (autoFullScreenFlag && autoEnterFullScreen ||
+          PlatformUtils.isTV) {
         triggerFullScreen(status: true);
       }
 
@@ -764,26 +765,31 @@ class PlPlayerController with BlockConfigMixin {
 
   Future<Player> _initPlayer() async {
     assert(_videoPlayerController == null);
-    final opt = {
-      'video-sync': Pref.videoSync,
-    };
-    if (Platform.isAndroid) {
-      opt['volume-max'] = '100';
-      opt['ao'] = Pref.audioOutput;
-    } else if (PlatformUtils.isDesktop) {
-      opt['volume'] = (volume.value * 100).toString();
-    }
-    final autosync = Pref.autosync;
-    if (autosync != '0') {
-      opt['autosync'] = autosync;
+    final Map<String, String> opt = {};
+    if (!PlatformUtils.isTV) {
+      opt['video-sync'] = Pref.videoSync;
+      if (Platform.isAndroid) {
+        opt['volume-max'] = '100';
+        opt['ao'] = Pref.audioOutput;
+      } else if (PlatformUtils.isDesktop) {
+        opt['volume'] = (volume.value * 100).toString();
+      }
+      final autosync = Pref.autosync;
+      if (autosync != '0') {
+        opt['autosync'] = autosync;
+      }
     }
 
     final player = await Player.create(
       configuration: PlayerConfiguration(
-        bufferSize: Pref.expandBuffer
-            ? (isLive ? 64 * 1024 * 1024 : 32 * 1024 * 1024)
-            : (isLive ? 16 * 1024 * 1024 : 4 * 1024 * 1024),
-        logLevel: kDebugMode ? .warn : .error,
+        bufferSize: PlatformUtils.isTV
+            ? 2 * 1024 * 1024
+            : Pref.expandBuffer
+                ? (isLive ? 64 * 1024 * 1024 : 32 * 1024 * 1024)
+                : (isLive ? 16 * 1024 * 1024 : 4 * 1024 * 1024),
+        logLevel: PlatformUtils.isTV
+            ? .warn
+            : kDebugMode ? .warn : .error,
         options: opt,
       ),
     );
@@ -794,7 +800,8 @@ class PlPlayerController with BlockConfigMixin {
       player,
       configuration: VideoControllerConfiguration(
         enableHardwareAcceleration: hwdec != null,
-        androidAttachSurfaceAfterVideoParameters: false,
+        androidAttachSurfaceAfterVideoParameters:
+            PlatformUtils.isTV && hwdec == null,
         hwdec: hwdec,
       ),
     );
@@ -846,11 +853,11 @@ class PlPlayerController with BlockConfigMixin {
     if (dataSource.audioSource case final audio? when (audio.isNotEmpty)) {
       if (onlyPlayAudio.value) {
         video = audio;
-      } else {
+      } else if (!PlatformUtils.isTV) {
         extras['audio-files'] =
             '"${Platform.isWindows ? audio.replaceAll(';', r'\;') : audio.replaceAll(':', r'\:')}"';
       }
-      if (enableAudioNormalization) {
+      if (!PlatformUtils.isTV && enableAudioNormalization) {
         final String audioNormalization;
         if (volume != null && volume.isNotEmpty) {
           audioNormalization = _audioNormalizationParam.replaceFirstMapped(
@@ -1017,6 +1024,11 @@ class PlPlayerController with BlockConfigMixin {
           }
         })),
       stream.error.listen((String event) {
+        if (PlatformUtils.isTV) {
+          SmartDialog.showToast('播放错误: $event',
+              displayTime: const Duration(seconds: 5));
+          Utils.reportError('mpv error: $event');
+        }
         if (dataSource is FileSource &&
             event.startsWith("Failed to open file")) {
           return;
@@ -1308,6 +1320,10 @@ class PlPlayerController with BlockConfigMixin {
   }
 
   set controls(bool visible) {
+    if (PlatformUtils.isTV) {
+      showControls.value = false;
+      return;
+    }
     showControls.value = visible;
     _timer?.cancel();
     if (visible) {
@@ -1475,7 +1491,13 @@ class PlPlayerController with BlockConfigMixin {
     this.isManualFS = isManualFS;
     try {
       if (status) {
-        if (PlatformUtils.isMobile) {
+        if (PlatformUtils.isTV) {
+          hideSystemBar();
+          await SystemChrome.setPreferredOrientations([
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ]);
+        } else if (PlatformUtils.isMobile) {
           hideSystemBar();
           await changeOrientation(
             isVertical: isVertical,
@@ -1485,7 +1507,14 @@ class PlPlayerController with BlockConfigMixin {
           await enterDesktopFullScreen(inAppFullScreen: inAppFullScreen);
         }
       } else {
-        if (PlatformUtils.isMobile) {
+        if (PlatformUtils.isTV) {
+          // TV: stay in landscape, restore immersive mode
+          await SystemChrome.setPreferredOrientations([
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ]);
+          SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+        } else if (PlatformUtils.isMobile) {
           if (!removeSafeArea) {
             showSystemBar();
           }
@@ -1798,6 +1827,11 @@ class PlPlayerController with BlockConfigMixin {
       return;
     }
     if (isFullScreen.value) {
+      if (PlatformUtils.isTV) {
+        triggerFullScreen(status: false);
+        Get.back();
+        return;
+      }
       triggerFullScreen(status: false);
       return;
     }

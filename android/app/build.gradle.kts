@@ -32,6 +32,23 @@ android {
         versionName = flutter.versionName
     }
 
+    flavorDimensions += "device"
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    productFlavors {
+        create("mobile") {
+            dimension = "device"
+            buildConfigField("boolean", "IS_TV", "false")
+        }
+        create("tv") {
+            dimension = "device"
+            buildConfigField("boolean", "IS_TV", "true")
+        }
+    }
+
     packagingOptions.jniLibs.useLegacyPackaging = true
 
     val keyProperties = Properties().also {

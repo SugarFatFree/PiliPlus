@@ -117,7 +117,7 @@ class VideoDetailController extends GetxController
   late VideoDecodeFormatType currentDecodeFormats;
 
   // 是否开始自动播放 存在多p的情况下，第二p需要为true
-  final RxBool _autoPlay = Pref.autoPlayEnable.obs;
+  final RxBool _autoPlay = (PlatformUtils.isTV || Pref.autoPlayEnable).obs;
 
   final videoPlayerKey = GlobalKey();
   final childKey = GlobalKey<ScaffoldState>();
@@ -838,14 +838,20 @@ class VideoDetailController extends GetxController
       querySponsorBlock(bvid: bvid, cid: cid.value);
     }
     if (plPlayerController.cacheVideoQa == null) {
-      final isWiFi = await ConnectivityUtils.isWiFi;
-      plPlayerController
-        ..cacheVideoQa = isWiFi
-            ? Pref.defaultVideoQa
-            : Pref.defaultVideoQaCellular
-        ..cacheAudioQa = isWiFi
-            ? Pref.defaultAudioQa
-            : Pref.defaultAudioQaCellular;
+      if (PlatformUtils.isTV) {
+        plPlayerController
+          ..cacheVideoQa = Pref.defaultVideoQa
+          ..cacheAudioQa = Pref.defaultAudioQa;
+      } else {
+        final isWiFi = await ConnectivityUtils.isWiFi;
+        plPlayerController
+          ..cacheVideoQa = isWiFi
+              ? Pref.defaultVideoQa
+              : Pref.defaultVideoQaCellular
+          ..cacheAudioQa = isWiFi
+              ? Pref.defaultAudioQa
+              : Pref.defaultAudioQaCellular;
+      }
     }
 
     final result = await VideoHttp.videoUrl(

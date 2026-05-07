@@ -16,6 +16,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.provider.Settings
+import android.view.KeyEvent
 import android.view.WindowManager.LayoutParams
 import androidx.core.net.toUri
 import com.ryanheise.audioservice.AudioServiceActivity
@@ -27,10 +28,34 @@ import java.io.File
 
 class MainActivity : AudioServiceActivity() {
     private lateinit var methodChannel: MethodChannel
+    private var tvKeyChannel: MethodChannel? = null
     private var isFoldable = false
+    private val isTV = BuildConfig.IS_TV
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (isTV) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+                KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                    val action = if (event.action == KeyEvent.ACTION_DOWN) "down"
+                        else if (event.action == KeyEvent.ACTION_UP) "up" else return true
+                    val key = if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP ||
+                        event.keyCode == KeyEvent.KEYCODE_VOLUME_UP) "arrowUp" else "arrowDown"
+                    tvKeyChannel?.invokeMethod("tvKey", mapOf(
+                        "key" to key, "action" to action, "isRepeat" to (event.repeatCount > 0)))
+                    return true
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        if (isTV) {
+            tvKeyChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "PiliPlus.tv")
+        }
 
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "PiliPlus")
         methodChannel.setMethodCallHandler { call, result ->

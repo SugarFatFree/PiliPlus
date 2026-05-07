@@ -44,6 +44,8 @@ class PlayerFocus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // TV 端方向键由 _TVPlayerKeyHandler 处理，不在这里处理
+    if (PlatformUtils.isTV) return child;
     return Focus(
       autofocus: true,
       onKeyEvent: (node, event) {
